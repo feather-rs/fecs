@@ -129,6 +129,11 @@ impl Executor {
         self.systems.push(system);
     }
 
+    pub fn with_system(mut self, system: impl RawSystem) -> Self {
+        self.add_system(system);
+        self
+    }
+
     pub fn add_handler<E>(&mut self, handler: impl EventHandler<E>)
     where
         E: 'static,
@@ -139,6 +144,14 @@ impl Executor {
     pub fn add_handler_boxed(&mut self, handler: Box<dyn RawEventHandler>) {
         self.event_handlers
             .insert_raw(handler.event_type(), DynEventHandler(handler));
+    }
+
+    pub fn with_handler<E>(mut self, handler: impl EventHandler<E>) -> Self
+    where
+        E: 'static,
+    {
+        self.add_handler(handler);
+        self
     }
 
     pub fn execute(&self, resources: &Resources, world: &mut World) {
