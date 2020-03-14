@@ -110,6 +110,10 @@ impl World {
         }
     }
 
+    pub fn defrag(&mut self, budget: Option<usize>) {
+        self.inner.defrag(budget)
+    }
+
     pub fn clear(&mut self) {
         self.inner.delete_all()
     }
