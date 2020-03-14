@@ -1,0 +1,18 @@
+[package]
+name = "fecs"
+version = "0.1.0"
+authors = ["caelunshun <caelunshun@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+fecs-macros = { path = "./macros" }
+legion = { git = "https://github.com/TomGillen/legion", rev = "c5b9628630d4f9fc54b6843b5ce02d0669434a61", default-features = false, features = ["par-iter"] }
+ahash = "0.3"
+smallvec = "1.2"
+erasable = "1.1"
+resources = "0.2"
+indexmap = "1.3"
+object-pool = "0.4"
+
+[workspace]
+members = [".", "macros"]
