@@ -1,5 +1,7 @@
+use crate::{Query, QueryBorrow};
 use legion::borrow::{Ref, RefMut};
 use legion::entity::Entity;
+use legion::query::IntoQuery;
 use legion::storage::Component;
 use legion::world::EntityMutationError;
 use legion::world::IntoComponentSource;
@@ -96,6 +98,16 @@ impl World {
         C: Component,
     {
         self.inner.get_component_mut_unchecked(entity)
+    }
+
+    pub fn query<Q>(&mut self) -> QueryBorrow<Q>
+    where
+        Q: Query,
+    {
+        QueryBorrow {
+            world: self,
+            inner: Q::Legion::query(),
+        }
     }
 
     pub fn clear(&mut self) {

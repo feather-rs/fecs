@@ -6,6 +6,7 @@ extern crate syn;
 extern crate quote;
 
 use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
 use syn::{FnArg, Ident, ItemFn, Pat, PatType, Type};
 
 #[proc_macro_attribute]
@@ -21,6 +22,115 @@ pub fn system(
         "systems may not have generic parameters"
     );
 
+    let (resources_init, world_ident, ctx_ident) = find_function_parameters(sig.inputs.iter());
+
+    let (world_ident, world_ty) = world_ident.unwrap_or((
+        Ident::new("_world", Span::call_site()),
+        quote! { &mut fecs::World },
+    ));
+    let (ctx_ident, ctx_ty) = ctx_ident.unwrap_or((
+        Ident::new("_ctx", Span::call_site()),
+        quote! { &mut fecs::SystemCtx },
+    ));
+
+    let content = &input.block;
+
+    let sys_name = input.sig.ident.clone();
+
+    let res = quote! {
+        #[allow(non_camel_case_types)]
+        pub struct #sys_name;
+
+        impl fecs::RawSystem for #sys_name {
+            fn run(&self, resources: &fecs::Resources, #world_ident: #world_ty, _executor: &fecs::Executor, #ctx_ident: #ctx_ty) {
+                #(#resources_init)*
+                #content
+            }
+        }
+    };
+
+    res.into()
+}
+
+#[proc_macro_attribute]
+pub fn event_handler(
+    _args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let input: ItemFn = parse_macro_input!(input as ItemFn);
+
+    let sig = &input.sig;
+    assert!(
+        sig.generics.params.is_empty(),
+        "systems may not have generic parameters"
+    );
+
+    // Find whether this is a batch handler or not, based on the first argument, which
+    // is the event argument.
+    let event_arg = sig
+        .inputs
+        .first()
+        .expect("event handler must take event as its first parameter");
+    let event_ty = match event_arg {
+        FnArg::Typed(p) => p,
+        _ => panic!("event handler may not take self parameter"),
+    };
+
+    let (is_batch, event_ty) = match &*event_ty.ty {
+        Type::Reference(r) => match *r.elem.clone() {
+            Type::Slice(s) => (true, (&*s.elem).clone()),
+            t => (false, t),
+        },
+        _ => unimplemented!(),
+    };
+
+    let block_outer = if is_batch {
+        quote! {}
+    } else {
+        quote! { for event in events }
+    };
+
+    let (resources_init, world_ident, ctx_ident) =
+        find_function_parameters(sig.inputs.iter().skip(1));
+
+    let (world_ident, world_ty) = world_ident.unwrap_or((
+        Ident::new("_world", Span::call_site()),
+        quote! { &mut fecs::World },
+    ));
+    let (ctx_ident, ctx_ty) = ctx_ident.unwrap_or((
+        Ident::new("_ctx", Span::call_site()),
+        quote! { &mut fecs::SystemCtx },
+    ));
+
+    let sys_name = input.sig.ident.clone();
+
+    let content = &input.block;
+
+    let res = quote! {
+        #[allow(non_camel_case_types)]
+        pub struct #sys_name;
+
+        impl fecs::EventHandler<#event_ty> for #sys_name {
+            fn handle(&self, events: &[#event_ty], resources: &fecs::Resources, #world_ident: #world_ty, _executor: &fecs::Executor, #ctx_ident: #ctx_ty) {
+                #(#resources_init)*
+
+                #block_outer {
+                    #content
+                }
+            }
+        }
+    };
+
+    res.into()
+}
+
+fn find_function_parameters<'a>(
+    inputs: impl Iterator<Item = &'a FnArg>,
+) -> (
+    Vec<TokenStream>,
+    Option<(Ident, TokenStream)>,
+    Option<(Ident, TokenStream)>,
+) {
     // Vector of resource takes from the `Resources`.
     let mut resources_init = vec![];
     // Vector of resource variable names (`Ident`s).
@@ -33,7 +143,7 @@ pub fn system(
     // the `PreparedWorld`, or the `CommandBuffer`.
     // Note that queries are performed inside the function using `cohort::query`.
     // This is implemented below.
-    for param in &sig.inputs {
+    for param in inputs {
         let arg = arg(param);
         let ident = match &*arg.pat {
             Pat::Ident(ident) => ident.ident.clone(),
@@ -43,8 +153,8 @@ pub fn system(
         let (mutability, ty) = parse_arg(arg);
 
         match ty {
-            ArgType::SystemCtx => ctx_ident = Some(ident),
-            ArgType::World => world_ident = Some(ident),
+            ArgType::SystemCtx => ctx_ident = Some((ident, arg.ty.to_token_stream())),
+            ArgType::World => world_ident = Some((ident, arg.ty.to_token_stream())),
             ArgType::Resource(res) => {
                 let get_fn = if mutability.is_some() {
                     quote! { get_mut }
@@ -52,36 +162,15 @@ pub fn system(
                     quote! { get }
                 };
                 let init = quote! {
-                    let #ident = resources.#get_fn::<#res>().unwrap();
-                    let #ident: #res = *#ident;
+                    let #mutability #ident = resources.#get_fn::<#res>().unwrap();
+                    let #ident: &#mutability #res = &#mutability *#ident;
                 };
                 resources_init.push(init);
             }
         }
     }
 
-    // TODO: queries
-
-    let world_ident = world_ident.unwrap_or(Ident::new("_world", Span::call_site()));
-    let ctx_ident = ctx_ident.unwrap_or(Ident::new("_ctx", Span::call_site()));
-
-    let content = &input.block;
-
-    let sys_name = input.sig.ident.clone();
-
-    let res = quote! {
-        #[allow(non_camel_case_types)]
-        pub struct #sys_name;
-
-        impl fecs::RawSystem for #sys_name {
-            fn run(&self, resources: &fecs::Resources, #world_ident: &mut fecs::World, _executor: &fecs::Executor, #ctx_ident: &mut fecs::SystemCtx) {
-                #(#resources_init)*
-                #content
-            }
-        }
-    };
-
-    res.into()
+    (resources_init, world_ident, ctx_ident)
 }
 
 fn parse_arg(arg: &PatType) -> (Option<Token![mut]>, ArgType) {
