@@ -35,6 +35,7 @@ pub fn system(
 
     let res = quote! {
         #[allow(non_camel_case_types)]
+        #[derive(Clone)]
         pub struct #sys_name;
 
         impl fecs::RawSystem for #sys_name {
@@ -43,6 +44,8 @@ pub fn system(
                 #content
             }
         }
+
+        fecs::inventory::submit!(fecs::SystemRegistration(std::sync::Mutex::new(Some(Box::new(#sys_name)))));
     };
 
     res.into()

@@ -1,4 +1,4 @@
-use crate::{Query, QueryBorrow};
+use crate::query::{Query, QueryBorrow};
 use legion::borrow::{Ref, RefMut};
 use legion::entity::Entity;
 use legion::query::IntoQuery;
