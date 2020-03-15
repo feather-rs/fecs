@@ -7,11 +7,7 @@ edition = "2018"
 [dependencies]
 fecs-macros = { path = "./macros" }
 legion = { git = "https://github.com/TomGillen/legion", rev = "c5b9628630d4f9fc54b6843b5ce02d0669434a61", default-features = false, features = ["par-iter"] }
-ahash = "0.3"
-smallvec = "1.2"
-erasable = "1.1"
-resources = "0.2"
-object-pool = "0.4"
+fxhash = "0.2"
 
 [workspace]
 members = [".", "macros"]

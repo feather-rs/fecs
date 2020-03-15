@@ -17,11 +17,13 @@ impl<'a, Q> QueryBorrow<'a, Q>
 where
     Q: Query,
 {
-    pub fn iter(&mut self) -> impl Iterator<Item = <<Q::Legion as View>::Iter as Iterator>::Item> {
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = <<Q::Legion as View>::Iter as Iterator>::Item> {
         self.inner.iter_mut(self.world.inner_mut())
     }
 
-    pub fn iter_entities(
+    pub fn iter_entities_mut(
         &mut self,
     ) -> impl Iterator<Item = (Entity, <<Q::Legion as View>::Iter as Iterator>::Item)> {
         self.inner.iter_entities_mut(self.world.inner_mut())

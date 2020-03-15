@@ -22,15 +22,11 @@ pub fn system(
         "systems may not have generic parameters"
     );
 
-    let (resources_init, world_ident, ctx_ident) = find_function_parameters(sig.inputs.iter());
+    let (resources_init, world_ident) = find_function_parameters(sig.inputs.iter());
 
     let (world_ident, world_ty) = world_ident.unwrap_or((
         Ident::new("_world", Span::call_site()),
         quote! { &mut fecs::World },
-    ));
-    let (ctx_ident, ctx_ty) = ctx_ident.unwrap_or((
-        Ident::new("_ctx", Span::call_site()),
-        quote! { &mut fecs::SystemCtx },
     ));
 
     let content = &input.block;
@@ -42,7 +38,7 @@ pub fn system(
         pub struct #sys_name;
 
         impl fecs::RawSystem for #sys_name {
-            fn run(&self, resources: &fecs::Resources, #world_ident: #world_ty, _executor: &fecs::Executor, #ctx_ident: #ctx_ty) {
+            fn run(&self, resources: &fecs::Resources, #world_ident: #world_ty, _executor: &fecs::Executor) {
                 #(#resources_init)*
                 #content
             }
@@ -52,6 +48,7 @@ pub fn system(
     res.into()
 }
 
+/*
 #[proc_macro_attribute]
 pub fn event_handler(
     _args: proc_macro::TokenStream,
@@ -123,21 +120,16 @@ pub fn event_handler(
 
     res.into()
 }
+*/
 
 fn find_function_parameters<'a>(
     inputs: impl Iterator<Item = &'a FnArg>,
-) -> (
-    Vec<TokenStream>,
-    Option<(Ident, TokenStream)>,
-    Option<(Ident, TokenStream)>,
-) {
+) -> (Vec<TokenStream>, Option<(Ident, TokenStream)>) {
     // Vector of resource takes from the `Resources`.
     let mut resources_init = vec![];
     // Vector of resource variable names (`Ident`s).
     // Ident of the World variable.
     let mut world_ident = None;
-    // Ident of the SystemCtx variable.
-    let mut ctx_ident = None;
 
     // Parse function arguments and determine whether they refer to resources,
     // the `PreparedWorld`, or the `CommandBuffer`.
@@ -153,7 +145,6 @@ fn find_function_parameters<'a>(
         let (mutability, ty) = parse_arg(arg);
 
         match ty {
-            ArgType::SystemCtx => ctx_ident = Some((ident, arg.ty.to_token_stream())),
             ArgType::World => world_ident = Some((ident, arg.ty.to_token_stream())),
             ArgType::Resource(res) => {
                 let get_fn = if mutability.is_some() {
@@ -162,7 +153,7 @@ fn find_function_parameters<'a>(
                     quote! { get }
                 };
                 let init = quote! {
-                    let #mutability #ident = resources.#get_fn::<#res>().unwrap();
+                    let #mutability #ident = resources.#get_fn::<#res>();
                     let #ident: &#mutability #res = &#mutability *#ident;
                 };
                 resources_init.push(init);
@@ -170,7 +161,7 @@ fn find_function_parameters<'a>(
         }
     }
 
-    (resources_init, world_ident, ctx_ident)
+    (resources_init, world_ident)
 }
 
 fn parse_arg(arg: &PatType) -> (Option<Token![mut]>, ArgType) {
@@ -187,14 +178,11 @@ fn parse_arg(arg: &PatType) -> (Option<Token![mut]>, ArgType) {
     let ty = inner.path.segments.last().expect("no last path segment");
 
     let world = "World";
-    let ctx = "SystemCtx";
 
     let string = ty.ident.to_string();
 
     let ty = if &string == world {
         ArgType::World
-    } else if &string == ctx {
-        ArgType::SystemCtx
     } else {
         let ty = &inner.path;
         ArgType::Resource(quote! { #ty })
@@ -205,7 +193,6 @@ fn parse_arg(arg: &PatType) -> (Option<Token![mut]>, ArgType) {
 
 enum ArgType {
     World,
-    SystemCtx,
     Resource(TokenStream),
 }
 
