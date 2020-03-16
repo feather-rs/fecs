@@ -33,6 +33,10 @@ impl Executor {
         self
     }
 
+    pub fn num_systems(&self) -> usize {
+        self.systems.len()
+    }
+
     pub fn execute(&self, resources: &Resources, world: &mut World) {
         for system in &self.systems {
             system.run(resources, world, self);

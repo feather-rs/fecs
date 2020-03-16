@@ -1,10 +1,9 @@
 use crate::{Executor, RawSystem};
 use std::sync::Mutex;
 
-inventory::collect!(SystemRegistration);
-
-#[doc(hidden)]
 pub struct SystemRegistration(pub Mutex<Option<Box<dyn RawSystem>>>);
+
+inventory::collect!(SystemRegistration);
 
 /// Builds an executor using all systems registered with `inventory::submit!`.
 ///
@@ -24,6 +23,5 @@ pub fn build_executor() -> Executor {
                 .expect("already built executor"),
         );
     }
-
     executor
 }

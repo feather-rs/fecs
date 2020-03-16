@@ -1,3 +1,4 @@
+use crate::entity_ref::EntityRef;
 use crate::query::{Query, QueryBorrow};
 use legion::borrow::{Ref, RefMut};
 use legion::entity::Entity;
@@ -100,6 +101,24 @@ impl World {
         self.inner.get_component_mut_unchecked(entity)
     }
 
+    pub fn has<C>(&self, entity: Entity) -> bool
+    where
+        C: Component,
+    {
+        self.try_get::<C>(entity).is_some()
+    }
+
+    pub fn entity(&self, entity: Entity) -> Option<EntityRef> {
+        if self.is_alive(entity) {
+            Some(EntityRef {
+                world: self,
+                entity,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn query<Q>(&mut self) -> QueryBorrow<Q>
     where
         Q: Query,
@@ -108,6 +127,10 @@ impl World {
             world: self,
             inner: Q::Legion::query(),
         }
+    }
+
+    pub fn is_alive(&self, entity: Entity) -> bool {
+        self.inner.is_alive(entity)
     }
 
     pub fn defrag(&mut self, budget: Option<usize>) {
