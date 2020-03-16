@@ -120,8 +120,7 @@ impl<'a> IntoComponentSource for BuiltEntity<'a> {
 
 impl<'a> BuiltEntity<'a> {
     pub fn spawn_in(self, world: &mut World) -> Entity {
-        dbg!();
-        dbg!(world.spawn(self)[0])
+        world.spawn(self)[0]
     }
 }
 
@@ -148,7 +147,6 @@ impl<'a> ComponentSource for BuiltEntity<'a> {
         let builder = self.builder.deref_mut();
 
         for (type_id, _meta, offset) in &builder.component_data {
-            dbg!();
             let component_resource_set = components.get_mut(*type_id).expect("invalid archetype");
             let mut component_writer = component_resource_set.writer();
 
@@ -179,7 +177,6 @@ impl<'a> ComponentLayout for BuiltEntity<'a> {
 
     fn tailor_archetype(&self, archetype: &mut ArchetypeDescription) {
         for (type_id, meta, _) in &self.builder.component_data {
-            dbg!(type_id);
             archetype.register_component_raw(*type_id, *meta);
         }
     }

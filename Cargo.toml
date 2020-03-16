@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 fecs-macros = { path = "./macros" }
-legion = { git = "https://github.com/TomGillen/legion", rev = "c5b9628630d4f9fc54b6843b5ce02d0669434a61", default-features = false, features = ["par-iter"] }
+legion = { git = "https://github.com/TomGillen/legion", branch = "fix-zst-component-ub", default-features = false, features = ["par-iter"] }
 fxhash = "0.2"
 inventory = "0.1"
 
