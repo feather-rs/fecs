@@ -48,6 +48,20 @@ impl EntityBuilder {
         }
         debug_assert!(self.components.capacity() > end);
 
+        // If the component already exists in the store,
+        // then override it.
+        if let Some((ty, meta, offset)) = self
+            .component_data
+            .iter()
+            .find(|(ty, _, _)| *ty == ComponentTypeId::of::<C>())
+            .copied()
+        {
+            debug_assert!(ty == ComponentTypeId::of::<C>());
+            debug_assert!(meta == ComponentMeta::of::<C>());
+            unsafe { self.replace(component, offset) }
+            return self;
+        }
+
         unsafe {
             self.components
                 .as_mut_ptr()
@@ -63,6 +77,14 @@ impl EntityBuilder {
         self.cursor += size;
 
         self
+    }
+
+    unsafe fn replace<C>(&mut self, component: C, offset: usize) {
+        self.components
+            .as_mut_ptr()
+            .offset(offset as isize)
+            .cast::<C>()
+            .write_unaligned(component);
     }
 
     pub fn build(self) -> BuiltEntity<'static> {

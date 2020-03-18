@@ -41,3 +41,16 @@ fn build_one() {
     let entity3 = builder.build_one().spawn_in(&mut world);
     assert_eq!(*world.get::<i32>(entity3), 15);
 }
+
+#[test]
+fn duplicate_components() {
+    let mut world = World::new();
+
+    let entity = EntityBuilder::new()
+        .with(10i32)
+        .with(11i32)
+        .build()
+        .spawn_in(&mut world);
+
+    assert_eq!(*world.get::<i32>(entity), 11);
+}
