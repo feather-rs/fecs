@@ -41,12 +41,12 @@ impl EntityBuilder {
         C: Component,
     {
         let size = mem::size_of::<C>();
-        let end = self.cursor + size;
+        let required_capacity = self.cursor + size;
 
-        if end > self.components.capacity() {
-            self.components.reserve(end + 1);
+        if self.components.capacity() < required_capacity {
+            self.components.reserve(required_capacity);
         }
-        debug_assert!(self.components.capacity() > end);
+        debug_assert!(self.components.capacity() >= required_capacity);
 
         // If the component already exists in the store,
         // then override it.
