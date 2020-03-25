@@ -40,14 +40,6 @@ impl EntityBuilder {
     where
         C: Component,
     {
-        let size = mem::size_of::<C>();
-        let required_capacity = self.cursor + size;
-
-        if self.components.capacity() < required_capacity {
-            self.components.reserve(required_capacity);
-        }
-        debug_assert!(self.components.capacity() >= required_capacity);
-
         // If the component already exists in the store,
         // then override it.
         if let Some((ty, meta, offset)) = self
@@ -61,6 +53,14 @@ impl EntityBuilder {
             unsafe { self.replace(component, offset) }
             return self;
         }
+
+        let size = mem::size_of::<C>();
+        let required_capacity = self.cursor + size;
+
+        if self.components.capacity() < required_capacity {
+            self.components.reserve(required_capacity);
+        }
+        debug_assert!(self.components.capacity() >= required_capacity);
 
         unsafe {
             self.components
