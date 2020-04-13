@@ -17,27 +17,27 @@ impl BorrowFlag {
     /// `true` if successful and `false` otherwise.
     fn obtain_mutable(&self) -> bool {
         self.0
-            .compare_and_swap(0, u32::max_value(), Ordering::Relaxed)
+            .compare_and_swap(0, u32::max_value(), Ordering::AcqRel)
             == 0
     }
 
     /// Marks this resource as not mutably borrowed.
     fn release_mutable(&self) {
-        debug_assert_eq!(self.0.load(Ordering::Relaxed), u32::max_value());
-        self.0.store(0, Ordering::Relaxed);
+        debug_assert_eq!(self.0.load(Ordering::Acquire), u32::max_value());
+        self.0.store(0, Ordering::Release);
     }
 
     /// Attempts to obtain an immutable borrow, returning `true` if successful
     /// and `false` otherwise.
     fn obtain_immutable(&self) -> bool {
         loop {
-            let val = self.0.load(Ordering::Relaxed);
+            let val = self.0.load(Ordering::Acquire);
 
             if val == u32::max_value() {
                 return false;
             }
 
-            if self.0.compare_and_swap(val, val + 1, Ordering::Relaxed) == val {
+            if self.0.compare_and_swap(val, val + 1, Ordering::AcqRel) == val {
                 return true;
             }
         }
@@ -45,7 +45,7 @@ impl BorrowFlag {
 
     /// Releases an immutable borrow.
     fn release_immutable(&self) {
-        self.0.fetch_sub(1, Ordering::Relaxed);
+        self.0.fetch_sub(1, Ordering::AcqRel);
     }
 }
 
