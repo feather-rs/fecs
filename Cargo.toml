@@ -10,6 +10,8 @@ legion = { git = "https://github.com/TomGillen/legion", rev = "24091d73353d639eb
 # legion = { path = "../legion" }
 fxhash = "0.2"
 inventory = "0.1"
+erasable = "1.1"
+smallvec = "1.3"
 
 [workspace]
 members = [".", "macros"]

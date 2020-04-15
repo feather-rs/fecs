@@ -1,6 +1,7 @@
 use fxhash::{FxBuildHasher, FxHashMap};
 use std::any::{Any, TypeId};
 use std::cell::UnsafeCell;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -93,28 +94,43 @@ impl<'a, T> Drop for RefMut<'a, T> {
     }
 }
 
+type RefEntry = (BorrowFlag, UnsafeCell<*mut dyn Any>);
+
 /// Stores a set of values, each with a distinct type.
 ///
 /// Resources are borrow checked at runtime.
-pub struct Resources {
+///
+/// In contrast to many resources crates, this type allows
+/// temporary binding of non-owned resources through the `with_ref` method.
+/// The lifetime parameter indicates the lifetime of these references;
+/// if you are only adding owned resources through `insert`, this
+/// can be `'static`.
+pub struct Resources<'a> {
     /// Mapping from resource types to their structs.
     types: FxHashMap<TypeId, (BorrowFlag, UnsafeCell<Box<dyn Any>>)>,
+    /// Additional shared values. (Linear search map)
+    refs: Vec<(TypeId, RefEntry)>,
+    _lifetime: PhantomData<&'a dyn Any>,
 }
 
-impl Default for Resources {
+impl Default for Resources<'static> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Resources {
+impl Resources<'static> {
     /// Creates a new `Resources` with no stored values.
     pub fn new() -> Self {
         Self {
             types: FxHashMap::with_hasher(FxBuildHasher::default()),
+            refs: Vec::new(),
+            _lifetime: Default::default(),
         }
     }
+}
 
+impl<'a> Resources<'a> {
     /// Inserts a new resource into this `Resources`.
     ///
     /// Replaces an existing value of the same type.
@@ -126,6 +142,44 @@ impl Resources {
             TypeId::of::<T>(),
             (BorrowFlag::default(), UnsafeCell::new(Box::new(resource))),
         );
+    }
+
+    /// Method chaining alias for `insert`.
+    pub fn with<T>(mut self, resource: T) -> Self
+    where
+        T: 'static,
+    {
+        self.insert(resource);
+        self
+    }
+
+    /// Inserts a reference to a resource into this `Resources`.
+    pub fn with_ref<'b, T>(mut self, resource: &'a mut T) -> Resources<'b>
+    where
+        T: 'static,
+        'a: 'b,
+    {
+        self.refs.push((
+            TypeId::of::<T>(),
+            (BorrowFlag::default(), UnsafeCell::new(resource as *mut _)),
+        ));
+
+        Resources {
+            types: self.types,
+            refs: self.refs,
+            _lifetime: self._lifetime,
+        }
+    }
+
+    /// Removes all references from this `Resources`, returning
+    /// a `Resources<'static>`.
+    pub fn without_refs(self) -> Resources<'static> {
+        let refs: Vec<(TypeId, RefEntry)> = Vec::new();
+        Resources {
+            types: self.types,
+            refs,
+            _lifetime: Default::default(),
+        }
     }
 
     /// Immutably borrows a resource from this container.
@@ -161,6 +215,22 @@ impl Resources {
                 }
             })
             .flatten()
+            .or_else(|| {
+                self.refs
+                    .iter()
+                    .find(|(id, _)| *id == TypeId::of::<T>())
+                    .map(|(_, (flag, resource))| {
+                        if flag.obtain_immutable() {
+                            Some(Ref {
+                                flag,
+                                value: unsafe { &*(*resource.get()) }.downcast_ref().unwrap(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+            })
     }
 
     /// Mutably borrows a resource from this container.
@@ -195,5 +265,21 @@ impl Resources {
                 }
             })
             .flatten()
+            .or_else(|| {
+                self.refs
+                    .iter()
+                    .find(|(id, _)| *id == TypeId::of::<T>())
+                    .map(|(_, (flag, resource))| {
+                        if flag.obtain_mutable() {
+                            Some(RefMut {
+                                flag,
+                                value: unsafe { &mut *(*resource.get()) }.downcast_mut().unwrap(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+            })
     }
 }

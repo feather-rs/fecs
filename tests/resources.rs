@@ -34,3 +34,20 @@ fn borrow_immutable_and_mutable() {
     let _ref = resources.get::<i32>();
     resources.get_mut::<i32>();
 }
+
+#[test]
+fn refs() {
+    let resources = Resources::new().with(10i32).with(15u64);
+
+    let mut r = "bla";
+    let resources = resources.with_ref(&mut r);
+
+    assert_eq!(*resources.get::<i32>(), 10);
+    assert_eq!(*resources.get::<u64>(), 15);
+    assert_eq!(*resources.get::<&'static str>(), "bla");
+    *resources.get_mut::<&'static str>() = "test";
+    assert_eq!(*resources.get::<&'static str>(), "test");
+
+    drop(resources);
+    assert_eq!(r, "test");
+}

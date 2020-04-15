@@ -1,5 +1,6 @@
 mod builder;
 mod entity_ref;
+mod events;
 mod query;
 mod registry;
 mod resources;
@@ -7,10 +8,11 @@ mod system;
 mod world;
 
 pub use builder::{BuiltEntity, EntityBuilder};
-pub use fecs_macros::system;
+pub use fecs_macros::{event_handler, system};
 pub use legion::entity::Entity;
 // pub use query::{Query, QueryBorrow, QueryElement};
 pub use entity_ref::EntityRef;
+pub use events::{Event, EventHandlers, RawEventHandler};
 pub use registry::{build_executor, SystemRegistration};
 pub use resources::{Ref, RefMut, Resources};
 pub use system::{Executor, RawSystem};

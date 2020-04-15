@@ -51,7 +51,6 @@ pub fn system(
     res.into()
 }
 
-/*
 #[proc_macro_attribute]
 pub fn event_handler(
     _args: proc_macro::TokenStream,
@@ -76,7 +75,7 @@ pub fn event_handler(
         _ => panic!("event handler may not take self parameter"),
     };
 
-    let (is_batch, event_ty) = match &*event_ty.ty {
+    let (_is_batch, event_ty) = match &*event_ty.ty {
         Type::Reference(r) => match *r.elem.clone() {
             Type::Slice(s) => (true, (&*s.elem).clone()),
             t => (false, t),
@@ -84,22 +83,11 @@ pub fn event_handler(
         _ => unimplemented!(),
     };
 
-    let block_outer = if is_batch {
-        quote! {}
-    } else {
-        quote! { for event in events }
-    };
-
-    let (resources_init, world_ident, ctx_ident) =
-        find_function_parameters(sig.inputs.iter().skip(1));
+    let (resources_init, world_ident) = find_function_parameters(sig.inputs.iter().skip(1));
 
     let (world_ident, world_ty) = world_ident.unwrap_or((
         Ident::new("_world", Span::call_site()),
         quote! { &mut fecs::World },
-    ));
-    let (ctx_ident, ctx_ty) = ctx_ident.unwrap_or((
-        Ident::new("_ctx", Span::call_site()),
-        quote! { &mut fecs::SystemCtx },
     ));
 
     let sys_name = input.sig.ident.clone();
@@ -110,20 +98,18 @@ pub fn event_handler(
         #[allow(non_camel_case_types)]
         pub struct #sys_name;
 
-        impl fecs::EventHandler<#event_ty> for #sys_name {
-            fn handle(&self, events: &[#event_ty], resources: &fecs::Resources, #world_ident: #world_ty, _executor: &fecs::Executor, #ctx_ident: #ctx_ty) {
+        impl fecs::RawEventHandler for #sys_name {
+            type Event = #event_ty;
+            fn handle(&self, resources: &fecs::Resources, #world_ident: #world_ty, event: &#event_ty) {
                 #(#resources_init)*
 
-                #block_outer {
-                    #content
-                }
+                #content
             }
         }
     };
 
     res.into()
 }
-*/
 
 fn find_function_parameters<'a>(
     inputs: impl Iterator<Item = &'a FnArg>,
