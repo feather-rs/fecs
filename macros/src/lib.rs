@@ -44,8 +44,6 @@ pub fn system(
                 #content
             }
         }
-
-        fecs::inventory::submit!(fecs::SystemRegistration(std::sync::Mutex::new(Some(Box::new(#sys_name)))));
     };
 
     res.into()
