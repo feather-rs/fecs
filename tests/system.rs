@@ -1,4 +1,4 @@
-use fecs::{system, EntityBuilder, Executor, Resources, World};
+use fecs::{system, EntityBuilder, Executor, OwnedResources, ResourcesProvider, World};
 
 #[test]
 fn basic() {
@@ -10,7 +10,7 @@ fn basic() {
     let mut executor = Executor::new();
     executor.add(test_system);
 
-    let mut resources = Resources::new();
+    let mut resources = OwnedResources::new();
     resources.insert(1024i32);
 
     executor.execute(&resources, &mut World::new());
@@ -37,7 +37,7 @@ fn queries() {
         .build()
         .spawn_in(&mut world);
 
-    executor.execute(&Resources::default(), &mut world);
+    executor.execute(&OwnedResources::default(), &mut world);
 
     assert_eq!(*world.get::<i32>(entity), 16i32);
 }

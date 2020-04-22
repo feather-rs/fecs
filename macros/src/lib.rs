@@ -39,7 +39,8 @@ pub fn system(
         pub struct #sys_name;
 
         impl fecs::RawSystem for #sys_name {
-            fn run(&self, resources: &fecs::Resources, #world_ident: #world_ty, _executor: &fecs::Executor) {
+            fn run(&self, resources: &fecs::ResourcesEnum, #world_ident: #world_ty, _executor: &fecs::Executor) {
+                use fecs::ResourcesProvider as _;
                 #(#resources_init)*
                 #content
             }
@@ -98,7 +99,8 @@ pub fn event_handler(
 
         impl fecs::RawEventHandler for #sys_name {
             type Event = #event_ty;
-            fn handle(&self, resources: &fecs::Resources, #world_ident: #world_ty, event: &#event_ty) {
+            fn handle(&self, resources: &fecs::ResourcesEnum, #world_ident: #world_ty, event: &#event_ty) {
+                use fecs::ResourcesProvider as _;
                 #(#resources_init)*
 
                 #content

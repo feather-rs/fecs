@@ -1,8 +1,8 @@
-use fecs::Resources;
+use fecs::{OwnedResources, RefResources, ResourcesProvider};
 
 #[test]
 fn resources() {
-    let mut resources = Resources::new();
+    let mut resources = OwnedResources::new();
 
     resources.insert(10i32);
 
@@ -16,7 +16,7 @@ fn resources() {
 #[test]
 #[should_panic]
 fn borrow_mutable_twice() {
-    let mut resources = Resources::new();
+    let mut resources = OwnedResources::new();
 
     resources.insert(10i32);
 
@@ -27,7 +27,7 @@ fn borrow_mutable_twice() {
 #[test]
 #[should_panic]
 fn borrow_immutable_and_mutable() {
-    let mut resources = Resources::new();
+    let mut resources = OwnedResources::new();
 
     resources.insert(10i32);
 
@@ -37,10 +37,10 @@ fn borrow_immutable_and_mutable() {
 
 #[test]
 fn refs() {
-    let resources = Resources::new().with(10i32).with(15u64);
+    let resources = OwnedResources::new().with(10i32).with(15u64);
 
     let mut r = "bla";
-    let resources = resources.with_ref(&mut r);
+    let resources = RefResources::new(resources, (&mut r,));
 
     assert_eq!(*resources.get::<i32>(), 10);
     assert_eq!(*resources.get::<u64>(), 15);

@@ -1,6 +1,6 @@
-//! A basic event handling system.
+//! A basic event handling framework.
 
-use crate::{Resources, World};
+use crate::{ResourcesEnum, ResourcesProvider, World};
 use erasable::{erase, Erasable, ErasedPtr};
 use fxhash::FxHashMap;
 use smallvec::SmallVec;
@@ -16,11 +16,11 @@ impl<T> Event for T where T: 'static {}
 #[doc(hidden)]
 pub trait RawEventHandler: 'static {
     type Event: Event;
-    fn handle(&self, resources: &Resources, world: &mut World, event: &Self::Event);
+    fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: &Self::Event);
 }
 
 trait TypeErasedEventHandler: 'static {
-    unsafe fn handle(&self, resources: &Resources, world: &mut World, event: ErasedPtr);
+    unsafe fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: ErasedPtr);
 }
 
 impl<H, E> TypeErasedEventHandler for H
@@ -30,7 +30,7 @@ where
 {
     /// Safety: the type of `event` must be the same
     /// as the event type handled by this handler.
-    unsafe fn handle(&self, resources: &Resources, world: &mut World, event: ErasedPtr) {
+    unsafe fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: ErasedPtr) {
         <Self as RawEventHandler>::handle(self, resources, world, E::unerase(event).as_ref())
     }
 }
@@ -67,7 +67,7 @@ impl EventHandlers {
     }
 
     /// Triggers an event.
-    pub fn trigger<E>(&self, resources: &Resources, world: &mut World, event: E)
+    pub fn trigger<E>(&self, resources: &impl ResourcesProvider, world: &mut World, event: E)
     where
         E: Event,
     {
@@ -79,7 +79,7 @@ impl EventHandlers {
                 // for that event type ID.
                 unsafe {
                     handler.handle(
-                        resources,
+                        &resources.as_resources_ref(),
                         world,
                         erase(NonNull::new_unchecked((&mut event) as *mut E)),
                     );

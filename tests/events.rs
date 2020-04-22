@@ -1,4 +1,6 @@
-use fecs::{event_handler, Entity, EntityBuilder, EventHandlers, Resources, World};
+use fecs::{
+    event_handler, Entity, EntityBuilder, EventHandlers, OwnedResources, ResourcesProvider, World,
+};
 
 #[test]
 fn basic() {
@@ -16,7 +18,7 @@ fn basic() {
 
     let handlers = EventHandlers::new().with(handler);
 
-    let resources = Resources::new().with(entity).with(15i32);
+    let resources = OwnedResources::new().with(entity).with(15i32);
 
     handlers.trigger(&resources, &mut world, 256i32);
 

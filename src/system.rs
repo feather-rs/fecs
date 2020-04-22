@@ -1,8 +1,9 @@
-use crate::{Resources, World};
+use crate::resources::ResourcesEnum;
+use crate::{ResourcesProvider, World};
 
 #[doc(hidden)]
 pub trait RawSystem: 'static {
-    fn run(&self, resources: &Resources, world: &mut World, executor: &Executor);
+    fn run(&self, resources: &ResourcesEnum, world: &mut World, executor: &Executor);
 }
 
 pub struct Executor {
@@ -37,9 +38,9 @@ impl Executor {
         self.systems.len()
     }
 
-    pub fn execute(&self, resources: &Resources, world: &mut World) {
+    pub fn execute(&self, resources: &impl ResourcesProvider, world: &mut World) {
         for system in &self.systems {
-            system.run(resources, world, self);
+            system.run(&resources.as_resources_ref(), world, self);
         }
     }
 }

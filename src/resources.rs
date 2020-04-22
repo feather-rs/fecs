@@ -6,7 +6,8 @@ use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Default)]
-struct BorrowFlag(
+#[doc(hidden)]
+pub struct BorrowFlag(
     /// If set to `u32::max_value()`, the resource
     /// is borrowed mutably; otherwise, it is set to the number of immutable
     /// borrows currently existing.
@@ -94,43 +95,123 @@ impl<'a, T> Drop for RefMut<'a, T> {
     }
 }
 
-type RefEntry = (BorrowFlag, UnsafeCell<*mut dyn Any>);
+pub trait ResourcesProvider {
+    /// Immutably borrows a resource from this container.
+    ///
+    /// # Panics
+    /// Panics if the resource does not exist or if it
+    /// is already mutably borrowed.
+    fn get<T>(&self) -> Ref<T>
+    where
+        T: 'static;
 
-/// Stores a set of values, each with a distinct type.
-///
-/// Resources are borrow checked at runtime.
-///
-/// In contrast to many resources crates, this type allows
-/// temporary binding of non-owned resources through the `with_ref` method.
-/// The lifetime parameter indicates the lifetime of these references;
-/// if you are only adding owned resources through `insert`, this
-/// can be `'static`.
-pub struct Resources<'a> {
-    /// Mapping from resource types to their structs.
-    types: FxHashMap<TypeId, (BorrowFlag, UnsafeCell<Box<dyn Any>>)>,
-    /// Additional shared values. (Linear search map)
-    refs: Vec<(TypeId, RefEntry)>,
-    _lifetime: PhantomData<&'a dyn Any>,
+    /// Immutably borrows a resource from this container.
+    ///
+    /// Returns `None` if the resource does not exist
+    /// or if it is already mutably borrowed.
+    fn try_get<T>(&self) -> Option<Ref<T>>
+    where
+        T: 'static;
+
+    /// Mutably borrows a resource from this container.
+    ///
+    /// # Panics
+    /// Panics of the resource does not exist or it is already borrowed.
+    fn get_mut<T>(&self) -> RefMut<T>
+    where
+        T: 'static;
+
+    /// Mutably borrows a resource from this container.
+    ///
+    /// Returns `None` if the resource does not exist
+    /// or it is already borrowed.
+    fn try_get_mut<T>(&self) -> Option<RefMut<T>>
+    where
+        T: 'static;
+
+    /// Converts this `ResourcesProvider` into a `ResourcesRef`
+    /// suitable for passing to dynamically-dispatched functions.
+    fn as_resources_ref(&self) -> ResourcesEnum;
 }
 
-impl Default for Resources<'static> {
+pub enum ResourcesEnum<'a> {
+    Owned(&'a OwnedResources),
+    Ref(&'a RefResources<'a, OwnedResources>),
+    DoubleRef(&'a ResourcesEnum<'a>),
+}
+
+impl<'a> ResourcesProvider for ResourcesEnum<'a> {
+    fn get<T>(&self) -> Ref<T>
+    where
+        T: 'static,
+    {
+        match self {
+            ResourcesEnum::Owned(res) => res.get(),
+            ResourcesEnum::Ref(res) => res.get(),
+            ResourcesEnum::DoubleRef(res) => res.get(),
+        }
+    }
+
+    fn try_get<T>(&self) -> Option<Ref<T>>
+    where
+        T: 'static,
+    {
+        match self {
+            ResourcesEnum::Owned(res) => res.try_get(),
+            ResourcesEnum::Ref(res) => res.try_get(),
+            ResourcesEnum::DoubleRef(res) => res.try_get(),
+        }
+    }
+
+    fn get_mut<T>(&self) -> RefMut<T>
+    where
+        T: 'static,
+    {
+        match self {
+            ResourcesEnum::Owned(res) => res.get_mut(),
+            ResourcesEnum::Ref(res) => res.get_mut(),
+            ResourcesEnum::DoubleRef(res) => res.get_mut(),
+        }
+    }
+
+    fn try_get_mut<T>(&self) -> Option<RefMut<T>>
+    where
+        T: 'static,
+    {
+        match self {
+            ResourcesEnum::Owned(res) => res.try_get_mut(),
+            ResourcesEnum::Ref(res) => res.try_get_mut(),
+            ResourcesEnum::DoubleRef(res) => res.try_get_mut(),
+        }
+    }
+
+    fn as_resources_ref(&self) -> ResourcesEnum {
+        ResourcesEnum::DoubleRef(self)
+    }
+}
+
+/// Stores a set of owned values, each with a distinct type.
+///
+/// Resources are borrow checked at runtime.
+pub struct OwnedResources {
+    /// Mapping from resource types to their structs.
+    types: FxHashMap<TypeId, (BorrowFlag, UnsafeCell<Box<dyn Any>>)>,
+}
+
+impl Default for OwnedResources {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Resources<'static> {
+impl OwnedResources {
     /// Creates a new `Resources` with no stored values.
     pub fn new() -> Self {
         Self {
             types: FxHashMap::with_hasher(FxBuildHasher::default()),
-            refs: Vec::new(),
-            _lifetime: Default::default(),
         }
     }
-}
 
-impl<'a> Resources<'a> {
     /// Inserts a new resource into this `Resources`.
     ///
     /// Replaces an existing value of the same type.
@@ -152,42 +233,15 @@ impl<'a> Resources<'a> {
         self.insert(resource);
         self
     }
+}
 
-    /// Inserts a reference to a resource into this `Resources`.
-    pub fn with_ref<'b, T>(mut self, resource: &'a mut T) -> Resources<'b>
-    where
-        T: 'static,
-        'a: 'b,
-    {
-        self.refs.push((
-            TypeId::of::<T>(),
-            (BorrowFlag::default(), UnsafeCell::new(resource as *mut _)),
-        ));
-
-        Resources {
-            types: self.types,
-            refs: self.refs,
-            _lifetime: self._lifetime,
-        }
-    }
-
-    /// Removes all references from this `Resources`, returning
-    /// a `Resources<'static>`.
-    pub fn without_refs(self) -> Resources<'static> {
-        let refs: Vec<(TypeId, RefEntry)> = Vec::new();
-        Resources {
-            types: self.types,
-            refs,
-            _lifetime: Default::default(),
-        }
-    }
-
+impl ResourcesProvider for OwnedResources {
     /// Immutably borrows a resource from this container.
     ///
     /// # Panics
     /// Panics if the resource does not exist or if it
     /// is already mutably borrowed.
-    pub fn get<T>(&self) -> Ref<T>
+    fn get<T>(&self) -> Ref<T>
     where
         T: 'static,
     {
@@ -198,7 +252,7 @@ impl<'a> Resources<'a> {
     ///
     /// Returns `None` if the resource does not exist
     /// or if it is already mutably borrowed.
-    pub fn try_get<T>(&self) -> Option<Ref<T>>
+    fn try_get<T>(&self) -> Option<Ref<T>>
     where
         T: 'static,
     {
@@ -215,29 +269,13 @@ impl<'a> Resources<'a> {
                 }
             })
             .flatten()
-            .or_else(|| {
-                self.refs
-                    .iter()
-                    .find(|(id, _)| *id == TypeId::of::<T>())
-                    .map(|(_, (flag, resource))| {
-                        if flag.obtain_immutable() {
-                            Some(Ref {
-                                flag,
-                                value: unsafe { &*(*resource.get()) }.downcast_ref().unwrap(),
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-            })
     }
 
     /// Mutably borrows a resource from this container.
     ///
     /// # Panics
     /// Panics of the resource does not exist or it is already borrowed.
-    pub fn get_mut<T>(&self) -> RefMut<T>
+    fn get_mut<T>(&self) -> RefMut<T>
     where
         T: 'static,
     {
@@ -248,7 +286,7 @@ impl<'a> Resources<'a> {
     ///
     /// Returns `None` if the resource does not exist
     /// or it is already borrowed.
-    pub fn try_get_mut<T>(&self) -> Option<RefMut<T>>
+    fn try_get_mut<T>(&self) -> Option<RefMut<T>>
     where
         T: 'static,
     {
@@ -265,21 +303,119 @@ impl<'a> Resources<'a> {
                 }
             })
             .flatten()
-            .or_else(|| {
-                self.refs
-                    .iter()
-                    .find(|(id, _)| *id == TypeId::of::<T>())
-                    .map(|(_, (flag, resource))| {
-                        if flag.obtain_mutable() {
-                            Some(RefMut {
-                                flag,
-                                value: unsafe { &mut *(*resource.get()) }.downcast_mut().unwrap(),
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-            })
+    }
+
+    fn as_resources_ref(&self) -> ResourcesEnum {
+        ResourcesEnum::Owned(self)
+    }
+}
+
+type RefEntry = (BorrowFlag, UnsafeCell<*mut dyn Any>);
+
+pub unsafe trait ResourceTuple<'a> {
+    fn into_vec(self) -> Vec<(TypeId, RefEntry)>;
+}
+
+macro_rules! impl_resource_tuple {
+    ($($ty:ident, $idx:tt),*) => {
+        unsafe impl <'a, $($ty,)*> ResourceTuple<'a> for ($(&'a mut $ty,)*) where $($ty: 'static,)* {
+            fn into_vec(self) -> Vec<(TypeId, RefEntry)> {
+                let mut vec = vec![];
+
+                $(
+                    vec.push((TypeId::of::<$ty>(), (BorrowFlag::default(), UnsafeCell::new(self.$idx as *mut _))));
+                )*
+
+                vec
+            }
+        }
+    }
+}
+
+impl_resource_tuple!(A, 0);
+impl_resource_tuple!(A, 0, B, 1);
+impl_resource_tuple!(A, 0, B, 1, C, 2);
+impl_resource_tuple!(A, 0, B, 1, C, 2, D, 3);
+
+/// A wrapper over `OwnedResources` which allows insertion of temporary
+/// borrows.
+pub struct RefResources<'a, R> {
+    inner: R,
+    refs: Vec<(TypeId, RefEntry)>,
+    _lifetime: PhantomData<&'a mut dyn Any>,
+}
+
+impl<'a, R> RefResources<'a, R> {
+    /// Creates a new `RefResources` wrapping the given resources.
+    pub fn new(inner: R, refs: impl ResourceTuple<'a>) -> Self {
+        Self {
+            inner,
+            refs: refs.into_vec(),
+            _lifetime: PhantomData::default(),
+        }
+    }
+}
+
+impl<'b> ResourcesProvider for RefResources<'b, OwnedResources> {
+    fn get<T>(&self) -> Ref<T>
+    where
+        T: 'static,
+    {
+        self.try_get::<T>().unwrap()
+    }
+
+    fn try_get<T>(&self) -> Option<Ref<T>>
+    where
+        T: 'static,
+    {
+        self.inner.try_get().or_else(|| {
+            self.refs
+                .iter()
+                .find(|(id, _)| *id == TypeId::of::<T>())
+                .map(|(_, (flag, cell))| {
+                    if flag.obtain_immutable() {
+                        Some(Ref {
+                            flag,
+                            value: unsafe { &**(&*cell.get()) }.downcast_ref().unwrap(),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+        })
+    }
+
+    fn get_mut<T>(&self) -> RefMut<T>
+    where
+        T: 'static,
+    {
+        self.try_get_mut().unwrap()
+    }
+
+    fn try_get_mut<T>(&self) -> Option<RefMut<T>>
+    where
+        T: 'static,
+    {
+        self.inner.try_get_mut().or_else(|| {
+            self.refs
+                .iter()
+                .find(|(id, _)| *id == TypeId::of::<T>())
+                .map(|(_, (flag, cell))| {
+                    if flag.obtain_mutable() {
+                        Some(RefMut {
+                            flag,
+                            value: unsafe { &mut **(&mut *cell.get()) }.downcast_mut().unwrap(),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+        })
+    }
+
+    fn as_resources_ref(&self) -> ResourcesEnum {
+        ResourcesEnum::Ref(self)
     }
 }

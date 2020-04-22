@@ -12,7 +12,7 @@ pub use legion::entity::Entity;
 // pub use query::{Query, QueryBorrow, QueryElement};
 pub use entity_ref::EntityRef;
 pub use events::{Event, EventHandlers, RawEventHandler};
-pub use resources::{Ref, RefMut, Resources};
+pub use resources::{OwnedResources, Ref, RefMut, RefResources, ResourcesEnum, ResourcesProvider};
 pub use system::{Executor, RawSystem};
 pub use world::World;
 
