@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use fxhash::{FxBuildHasher, FxHashMap};
 use std::any::{Any, TypeId};
 use std::cell::UnsafeCell;
@@ -313,14 +314,14 @@ impl ResourcesProvider for OwnedResources {
 type RefEntry = (BorrowFlag, UnsafeCell<*mut dyn Any>);
 
 pub unsafe trait ResourceTuple<'a> {
-    fn into_vec(self) -> Vec<(TypeId, RefEntry)>;
+    fn into_vec(self) -> ArrayVec<[(TypeId, RefEntry); 4]>;
 }
 
 macro_rules! impl_resource_tuple {
     ($($ty:ident, $idx:tt),*) => {
         unsafe impl <'a, $($ty,)*> ResourceTuple<'a> for ($(&'a mut $ty,)*) where $($ty: 'static,)* {
-            fn into_vec(self) -> Vec<(TypeId, RefEntry)> {
-                let mut vec = vec![];
+            fn into_vec(self) -> ArrayVec<[(TypeId, RefEntry); 4]> {
+                let mut vec = ArrayVec::new();
 
                 $(
                     vec.push((TypeId::of::<$ty>(), (BorrowFlag::default(), UnsafeCell::new(self.$idx as *mut _))));
@@ -341,7 +342,7 @@ impl_resource_tuple!(A, 0, B, 1, C, 2, D, 3);
 /// borrows.
 pub struct RefResources<'a, R> {
     inner: R,
-    refs: Vec<(TypeId, RefEntry)>,
+    refs: ArrayVec<[(TypeId, RefEntry); 4]>,
     _lifetime: PhantomData<&'a mut dyn Any>,
 }
 
