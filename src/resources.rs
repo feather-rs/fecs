@@ -341,14 +341,14 @@ impl_resource_tuple!(A, 0, B, 1, C, 2, D, 3);
 /// A wrapper over `OwnedResources` which allows insertion of temporary
 /// borrows.
 pub struct RefResources<'a, R> {
-    inner: R,
+    inner: &'a R,
     refs: ArrayVec<[(TypeId, RefEntry); 4]>,
     _lifetime: PhantomData<&'a mut dyn Any>,
 }
 
 impl<'a, R> RefResources<'a, R> {
     /// Creates a new `RefResources` wrapping the given resources.
-    pub fn new(inner: R, refs: impl ResourceTuple<'a>) -> Self {
+    pub fn new(inner: &'a R, refs: impl ResourceTuple<'a>) -> Self {
         Self {
             inner,
             refs: refs.into_vec(),

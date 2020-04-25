@@ -40,7 +40,7 @@ fn refs() {
     let resources = OwnedResources::new().with(10i32).with(15u64);
 
     let mut r = "bla";
-    let resources = RefResources::new(resources, (&mut r,));
+    let resources = RefResources::new(&resources, (&mut r,));
 
     assert_eq!(*resources.get::<i32>(), 10);
     assert_eq!(*resources.get::<u64>(), 15);
