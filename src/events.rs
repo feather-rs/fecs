@@ -14,12 +14,12 @@ impl<T> Event for T where T: 'static {}
 /// A raw event handler. Use the `event_handler` proc macro
 /// instead of implementing this type manually.
 #[doc(hidden)]
-pub trait RawEventHandler: 'static {
+pub trait RawEventHandler: Send + Sync + 'static {
     type Event: Event;
     fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: &Self::Event);
 }
 
-trait TypeErasedEventHandler: 'static {
+trait TypeErasedEventHandler: Send + Sync + 'static {
     unsafe fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: ErasedPtr);
 }
 
