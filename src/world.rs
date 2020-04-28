@@ -68,6 +68,9 @@ impl World {
         })
     }
 
+    /// # Safety
+    /// The caller must ensure that there exists at most one
+    /// mutable reference to a given component at any time.
     pub unsafe fn get_mut_unchecked<C>(&self, entity: Entity) -> RefMut<C>
     where
         C: Component,
@@ -94,6 +97,9 @@ impl World {
         self.inner.get_component_mut(entity)
     }
 
+    /// # Safety
+    /// The caller must ensure that there exists at most one
+    /// mutable reference to a given component at any time.
     pub unsafe fn try_get_mut_unchecked<C>(&self, entity: Entity) -> Option<RefMut<C>>
     where
         C: Component,

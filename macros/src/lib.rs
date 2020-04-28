@@ -22,7 +22,7 @@ pub fn system(
         "systems may not have generic parameters"
     );
 
-    let (resources_init, world_ident) = find_function_parameters(sig.inputs.iter());
+    let (resources_init, set_up, world_ident) = find_function_parameters(sig.inputs.iter());
 
     let (world_ident, world_ty) = world_ident.unwrap_or((
         Ident::new("_world", Span::call_site()),
@@ -43,6 +43,11 @@ pub fn system(
                 use fecs::ResourcesProvider as _;
                 #(#resources_init)*
                 #content
+            }
+
+            #[allow(unused_variables)]
+            fn set_up(&mut self, resources: &mut fecs::OwnedResources, #world_ident: #world_ty) {
+                #(#set_up)*
             }
         }
     };
@@ -82,7 +87,7 @@ pub fn event_handler(
         _ => unimplemented!(),
     };
 
-    let (resources_init, world_ident) = find_function_parameters(sig.inputs.iter().skip(1));
+    let (resources_init, set_up, world_ident) = find_function_parameters(sig.inputs.iter().skip(1));
 
     let (world_ident, world_ty) = world_ident.unwrap_or((
         Ident::new("_world", Span::call_site()),
@@ -105,6 +110,11 @@ pub fn event_handler(
 
                 #content
             }
+
+            #[allow(unused_variables)]
+            fn set_up(&mut self, resources: &mut fecs::OwnedResources, #world_ident: #world_ty) {
+                #(#set_up)*
+            }
         }
     };
 
@@ -113,9 +123,15 @@ pub fn event_handler(
 
 fn find_function_parameters<'a>(
     inputs: impl Iterator<Item = &'a FnArg>,
-) -> (Vec<TokenStream>, Option<(Ident, TokenStream)>) {
+) -> (
+    Vec<TokenStream>,
+    Vec<TokenStream>,
+    Option<(Ident, TokenStream)>,
+) {
     // Vector of resource takes from the `Resources`.
     let mut resources_init = vec![];
+    // Vector of setup statements.
+    let mut set_up = vec![];
     // Vector of resource variable names (`Ident`s).
     // Ident of the World variable.
     let mut world_ident = None;
@@ -130,6 +146,11 @@ fn find_function_parameters<'a>(
             Pat::Ident(ident) => ident.ident.clone(),
             _ => panic!(),
         };
+
+        let init_with_default = arg.attrs.iter().any(|attr| {
+            attr.path
+                .is_ident(&Ident::new("default", Span::call_site()))
+        });
 
         let (mutability, ty) = parse_arg(arg);
 
@@ -146,11 +167,17 @@ fn find_function_parameters<'a>(
                     let #ident: &#mutability #res = &#mutability *#ident;
                 };
                 resources_init.push(init);
+
+                if init_with_default {
+                    set_up.push(quote! {
+                        resources.insert(#res::default());
+                    });
+                }
             }
         }
     }
 
-    (resources_init, world_ident)
+    (resources_init, set_up, world_ident)
 }
 
 fn parse_arg(arg: &PatType) -> (Option<Token![mut]>, ArgType) {
@@ -170,14 +197,14 @@ fn parse_arg(arg: &PatType) -> (Option<Token![mut]>, ArgType) {
 
     let string = ty.ident.to_string();
 
-    let ty = if &string == world {
+    let ty = if string == world {
         ArgType::World
     } else {
         let ty = &inner.path;
         ArgType::Resource(quote! { #ty })
     };
 
-    (arg.mutability.clone(), ty)
+    (arg.mutability, ty)
 }
 
 enum ArgType {

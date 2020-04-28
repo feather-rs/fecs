@@ -1,9 +1,10 @@
 use crate::resources::ResourcesEnum;
-use crate::{ResourcesProvider, World};
+use crate::{OwnedResources, ResourcesProvider, World};
 
 #[doc(hidden)]
 pub trait RawSystem: 'static {
     fn run(&self, resources: &ResourcesEnum, world: &mut World, executor: &Executor);
+    fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World);
 }
 
 pub struct Executor {
@@ -36,6 +37,12 @@ impl Executor {
 
     pub fn num_systems(&self) -> usize {
         self.systems.len()
+    }
+
+    pub fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World) {
+        for system in &mut self.systems {
+            system.set_up(resources, world);
+        }
     }
 
     pub fn execute(&self, resources: &impl ResourcesProvider, world: &mut World) {

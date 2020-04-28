@@ -1,6 +1,6 @@
 //! A basic event handling framework.
 
-use crate::{ResourcesEnum, ResourcesProvider, World};
+use crate::{OwnedResources, ResourcesEnum, ResourcesProvider, World};
 use erasable::{erase, Erasable, ErasedPtr};
 use fxhash::FxHashMap;
 use smallvec::SmallVec;
@@ -17,10 +17,16 @@ impl<T> Event for T where T: 'static {}
 pub trait RawEventHandler: Send + Sync + 'static {
     type Event: Event;
     fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: &Self::Event);
+    fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World);
 }
 
 trait TypeErasedEventHandler: Send + Sync + 'static {
     unsafe fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: ErasedPtr);
+    fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World);
+
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 impl<H, E> TypeErasedEventHandler for H
@@ -32,6 +38,10 @@ where
     /// as the event type handled by this handler.
     unsafe fn handle(&self, resources: &ResourcesEnum, world: &mut World, event: ErasedPtr) {
         <Self as RawEventHandler>::handle(self, resources, world, E::unerase(event).as_ref())
+    }
+
+    fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World) {
+        <Self as RawEventHandler>::set_up(self, resources, world);
     }
 }
 
@@ -64,6 +74,12 @@ impl EventHandlers {
     {
         self.add(handler);
         self
+    }
+
+    pub fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World) {
+        for handler in self.0.values_mut().flatten() {
+            handler.set_up(resources, world);
+        }
     }
 
     /// Triggers an event.

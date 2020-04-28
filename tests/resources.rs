@@ -7,7 +7,7 @@ fn resources() {
     resources.insert(10i32);
 
     assert_eq!(*resources.get::<i32>(), 10);
-    assert!(resources.try_get::<i64>().is_none());
+    assert!(resources.try_get::<i64>().is_err());
 
     resources.insert(11i64);
     assert_eq!(*resources.get::<i64>(), 11);

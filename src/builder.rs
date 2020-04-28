@@ -65,7 +65,7 @@ impl EntityBuilder {
         unsafe {
             self.components
                 .as_mut_ptr()
-                .offset(self.cursor as isize)
+                .add(self.cursor)
                 .cast::<C>()
                 .write_unaligned(component);
         }
@@ -82,7 +82,7 @@ impl EntityBuilder {
     unsafe fn replace<C>(&mut self, component: C, offset: usize) {
         self.components
             .as_mut_ptr()
-            .offset(offset as isize)
+            .add(offset)
             .cast::<C>()
             .write_unaligned(component);
     }
@@ -173,7 +173,7 @@ impl<'a> ComponentSource for BuiltEntity<'a> {
             let mut component_writer = component_resource_set.writer();
 
             unsafe {
-                let ptr = NonNull::new(builder.components.as_mut_ptr().offset(*offset as isize))
+                let ptr = NonNull::new(builder.components.as_mut_ptr().add(*offset))
                     .expect("ptr is null... this should not happen");
 
                 component_writer.push_raw(ptr, 1);

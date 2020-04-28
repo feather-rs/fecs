@@ -41,3 +41,20 @@ fn queries() {
 
     assert_eq!(*world.get::<i32>(entity), 16i32);
 }
+
+#[test]
+fn default_resource() {
+    #[system]
+    fn test_system(#[default] x: &mut i32) {
+        *x += 1;
+    }
+
+    let mut executor = Executor::new().with(test_system);
+
+    let mut resources = OwnedResources::new();
+    let mut world = World::new();
+
+    executor.set_up(&mut resources, &mut world);
+    executor.execute(&resources, &mut world);
+    assert_eq!(*resources.get::<i32>(), 1);
+}
