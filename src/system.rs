@@ -2,7 +2,7 @@ use crate::resources::ResourcesEnum;
 use crate::{OwnedResources, ResourcesProvider, World};
 
 #[doc(hidden)]
-pub trait RawSystem: 'static {
+pub trait RawSystem: Send + Sync + 'static {
     fn run(&self, resources: &ResourcesEnum, world: &mut World, executor: &Executor);
     fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World);
 }
@@ -51,3 +51,5 @@ impl Executor {
         }
     }
 }
+
+static_assertions::assert_impl_all!(Executor: Send, Sync);

@@ -104,3 +104,5 @@ impl EventHandlers {
         }
     }
 }
+
+static_assertions::assert_impl_all!(EventHandlers: Send, Sync);

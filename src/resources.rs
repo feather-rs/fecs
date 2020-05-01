@@ -459,3 +459,5 @@ impl<'b> ResourcesProvider for RefResources<'b, OwnedResources> {
         ResourcesEnum::Ref(self)
     }
 }
+
+static_assertions::assert_impl_all!(OwnedResources: Send, Sync);
