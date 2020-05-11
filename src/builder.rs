@@ -41,7 +41,7 @@ impl EntityBuilder {
     }
 
     /// Adds a component to an entity, or sets its value if the component is present.
-    pub fn add<C>(&mut self, component: C)
+    pub fn add<C>(&mut self, component: C) -> &mut Self
     where
         C: Component,
     {
@@ -56,7 +56,7 @@ impl EntityBuilder {
             debug_assert!(ty == ComponentTypeId::of::<C>());
             debug_assert!(meta == ComponentMeta::of::<C>());
             unsafe { self.replace(component, offset) }
-            return;
+            return self;
         }
 
         let size = mem::size_of::<C>();
@@ -80,6 +80,7 @@ impl EntityBuilder {
         self.component_data.push((type_id, meta, self.cursor));
 
         self.cursor += size;
+        self
     }
 
     unsafe fn replace<C>(&mut self, component: C, offset: usize) {
