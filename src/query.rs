@@ -4,6 +4,7 @@ use legion::query::View;
 use legion::query::{IntoQuery, ViewElement};
 use legion::storage::Component;
 
+/// A query that references a given world.
 pub struct QueryBorrow<'a, Q>
 where
     Q: Query,

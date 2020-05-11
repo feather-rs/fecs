@@ -10,6 +10,7 @@ use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
+/// A builder that simplifies the creation of a single entity.
 #[derive(Default)]
 pub struct EntityBuilder {
     /// Raw component storage. Each component is written
@@ -27,6 +28,9 @@ impl EntityBuilder {
         Self::default()
     }
 
+    /// Adds a component to an entity, or sets its value if the component is present.
+    ///
+    /// Returns `Self` such that method calls for `EntityBuilder`can be chained.
     pub fn with<C>(mut self, component: C) -> Self
     where
         C: Component,
@@ -36,6 +40,7 @@ impl EntityBuilder {
         self
     }
 
+    /// Adds a component to an entity, or sets its value if the component is present.
     pub fn add<C>(&mut self, component: C) -> &mut Self
     where
         C: Component,
@@ -75,7 +80,6 @@ impl EntityBuilder {
         self.component_data.push((type_id, meta, self.cursor));
 
         self.cursor += size;
-
         self
     }
 
@@ -87,6 +91,7 @@ impl EntityBuilder {
             .write_unaligned(component);
     }
 
+    /// Builds the components into an entity that can be inserted into a world.
     pub fn build(self) -> BuiltEntity<'static> {
         BuiltEntity {
             builder: CowMut::Owned(self),
@@ -94,6 +99,7 @@ impl EntityBuilder {
         }
     }
 
+    /// Builds the components into an entity without deallocating the internals.
     pub fn build_one(&mut self) -> BuiltEntity {
         BuiltEntity {
             builder: CowMut::Borrowed(self),
@@ -141,6 +147,7 @@ impl<'a> IntoComponentSource for BuiltEntity<'a> {
 }
 
 impl<'a> BuiltEntity<'a> {
+    /// Spawns the built entity into the given world.
     pub fn spawn_in(self, world: &mut World) -> Entity {
         world.spawn(self)[0]
     }
