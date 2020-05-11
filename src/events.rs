@@ -82,7 +82,7 @@ impl EventHandlers {
         }
     }
 
-    /// Emeits the given event `E` with given resources and world.
+    /// Emits the given event `E` with the given resources and world.
     pub fn trigger<E>(&self, resources: &impl ResourcesProvider, world: &mut World, event: E)
     where
         E: Event,

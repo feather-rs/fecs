@@ -99,7 +99,7 @@ impl EntityBuilder {
         }
     }
 
-    /// This one seems redudent, since spawning clears the internal components.
+    /// Builds the components into an entity without deallocating the internals.
     pub fn build_one(&mut self) -> BuiltEntity {
         BuiltEntity {
             builder: CowMut::Borrowed(self),
