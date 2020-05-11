@@ -6,7 +6,7 @@ pub trait RawSystem: Send + Sync + 'static {
     /// Runs the system with the given resources and world.
     fn run(&self, resources: &ResourcesEnum, world: &mut World, executor: &Executor);
 
-    /// Set up the system with the given resources and world. 
+    /// Set up the system with the given resources and world.
     fn set_up(&mut self, resources: &mut OwnedResources, world: &mut World);
 }
 
@@ -34,7 +34,7 @@ impl Executor {
     pub fn add_boxed(&mut self, system: Box<dyn RawSystem>) {
         self.systems.push(system);
     }
-    
+
     /// Adds the given system to the executor.
     ///
     /// Returns `Self` such that method calls for `Executor` can be chained.

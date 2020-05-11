@@ -4,7 +4,7 @@ use legion::borrow::{Ref, RefMut};
 use legion::entity::Entity;
 use legion::query::IntoQuery;
 use legion::storage::Component;
-use legion::world::{EntityMutationError, IntoComponentSource, ComponentTypeTupleSet};
+use legion::world::{ComponentTypeTupleSet, EntityMutationError, IntoComponentSource};
 
 type LegionWorld = legion::world::World;
 
@@ -53,7 +53,6 @@ impl World {
         self.inner.add_component(entity, component)
     }
 
-
     /// Removes a component from an entity.
     ///
     /// # Notes
@@ -61,7 +60,7 @@ impl World {
     /// causing a memory copy of the entity to a new location. This function should not be used
     /// multiple times in successive order.
     ///
-    /// `World::batch_remove` should be used for removing multiple components from an entity at once., 
+    /// `World::batch_remove` should be used for removing multiple components from an entity at once.,
     pub fn remove<C>(&mut self, entity: Entity) -> Result<(), EntityMutationError>
     where
         C: Component,
@@ -182,7 +181,7 @@ impl World {
         }
     }
 
-    /// Creates a query for the world. 
+    /// Creates a query for the world.
     pub fn query<Q>(&mut self) -> QueryBorrow<Q>
     where
         Q: Query,
@@ -209,7 +208,7 @@ impl World {
         self.inner.defrag(budget)
     }
 
-    /// Delete all entities and their associated data. 
+    /// Delete all entities and their associated data.
     /// This leaves subscriptions and the command buffer intact.
     pub fn clear(&mut self) {
         self.inner.delete_all()
