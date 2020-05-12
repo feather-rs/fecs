@@ -1,19 +1,38 @@
 [package]
 name = "fecs"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["caelunshun <caelunshun@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-fecs-macros = { path = "./macros" }
-legion = { git = "https://github.com/TomGillen/legion", rev = "bd441f4811e7a9e877a0f479a674bbdbf4e4cda3" }
-# legion = { path = "../legion" }
-fxhash = "0.2"
-erasable = "1.1"
-smallvec = "1.3"
-arrayvec = "0.5"
-thiserror = "1.0"
-static_assertions = "1.1"
+rustc-hash = { version = "1.0", default-features = false, optional = true }
+parking_lot = { version = "0.10", default-features = false, optional = true }
 
-[workspace]
-members = [".", "macros"]
+# no_std mutex
+spinning_top = { version = "0.1", default-features = false, optional = true }
+# no_std hashmap (https://github.com/rust-lang/rust/issues/56192)
+hashbrown = { version = "0.7", default-features = false, optional = true }
+
+[features]
+# Enables no_std support by using spin locks
+# instead of mutexes. Not recommended for
+# non-embedded applications.
+no-std = ["spinning_top", "hashbrown", "fast-hasher"]
+
+# Enables all performance-oriented features and functionality. Disabled by default.
+full = ["fast-hasher", "fast-locks"]
+
+# Use FxHash instead of SipHash
+# for the component map. Improves
+# performance but adds a dependency.
+#
+# Note that this feature is enabled automatically
+# when `no-std` is enabled.
+fast-hasher = ["rustc-hash"]
+# Use parking_lot locks instead of those
+# from std. May improve performance but adds
+# a dependency. Not available on `no-std`.
+fast-locks = ["parking_lot"]
+
+[dev-dependencies]
+loom = "0.3"

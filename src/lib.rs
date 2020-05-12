@@ -1,22 +1,16 @@
-mod builder;
-mod entity_ref;
-mod events;
+#![cfg_attr(feature = "no-std", no_std)]
+
+extern crate alloc;
+
+pub mod borrow;
+
+mod component;
+mod entity;
 mod query;
-mod resources;
-mod system;
+mod util;
 mod world;
 
-pub use builder::{BuiltEntity, EntityBuilder};
-pub use fecs_macros::{event_handler, system};
-pub use legion::entity::Entity;
-// pub use query::{Query, QueryBorrow, QueryElement};
-pub use entity_ref::EntityRef;
-pub use events::{Event, EventHandlers, RawEventHandler};
-pub use resources::{OwnedResources, Ref, RefMut, RefResources, ResourcesEnum, ResourcesProvider};
-pub use system::{Executor, RawSystem};
-pub use world::World;
-
-pub use legion::filter::filter_fns::*;
-pub use legion::query::{IntoQuery, Read, TryRead, TryWrite, Write};
-
-pub use legion;
+pub use borrow::AtomicRefCell;
+pub use component::Component;
+pub use entity::Entity;
+pub use world::{local::World, shared::SharedWorld};
