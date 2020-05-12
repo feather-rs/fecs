@@ -18,3 +18,5 @@ pub use world::World;
 
 pub use legion::filter::filter_fns::*;
 pub use legion::query::{IntoQuery, Read, TryRead, TryWrite, Write};
+
+pub use legion;
